@@ -17,8 +17,9 @@ class startParsing extends Command
     protected $signature = 'app:start-parsing';
 
     /**
-     * The console command description.
-     *
+     * Для запуска парсинга выполнить команду:
+     * php artisan app:start-parsing
+     * 
      * @var string
      */
     protected $description = 'Запуск парсинга для сайта ';
@@ -31,6 +32,14 @@ class startParsing extends Command
         ])->get($url)->getBody()->getContents();
 
         return $contents;
+    }
+
+    public function parseApi($url){
+        $response = Http::withOptions([
+            'verify' => false,
+        ])->get($url)->json();
+
+        return $response;
     }
 
     public function clear($str){
@@ -48,8 +57,10 @@ class startParsing extends Command
 
         $urlGoszakupki = 'https://goszakupki.by/tenders/posted?TendersSearch%5Bnum%5D=&TendersSearch%5BiceGiasNum%5D=&TendersSearch%5Btext%5D=&TendersSearch%5Bunp%5D=&TendersSearch%5Bcustomer_text%5D=&TendersSearch%5BunpParticipant%5D=&TendersSearch%5Bparticipant_text%5D=&TendersSearch%5Bprice_from%5D=&TendersSearch%5Bprice_to%5D=&TendersSearch%5Bcreated_from%5D=&TendersSearch%5Bcreated_to%5D=&TendersSearch%5Brequest_end_from%5D=&TendersSearch%5Brequest_end_to%5D=&TendersSearch%5Bauction_date_from%5D=&TendersSearch%5Bauction_date_to%5D=&TendersSearch%5Bindustry%5D=345%2C347%2C351%2C352&TendersSearch%5Btype%5D=&TendersSearch%5Bstatus%5D=&TendersSearch%5Bstatus%5D%5B%5D=Submission&TendersSearch%5Bregion%5D=&TendersSearch%5Bappeal%5D=&TendersSearch%5Bfunds%5D=';
 
+        $urlGias = 'https://gias.by/search/api/v1/search/purchases';
+
         // Устанавливаем паузу между итерациями
-        $pause = rand(1, 3);
+        $pause = rand(1, 2);
 
         $icetradeContents = $this->parse($urlIcetrade);
         $goszakupkiContents = $this->parse($urlGoszakupki);
@@ -72,14 +83,12 @@ class startParsing extends Command
                 $goszakupkiContents = $this->parse($urlGoszakupkiNext);
                 preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents, $resultGoszakupkiNext);
                 $resultGoszakupki .= $resultGoszakupkiNext[1];
-
             }
         }
 
         $exportData = array();
 
         // Парсинг для icetrade.by
-
         if ($zakupkiIcetrade == 1){
             // Получаем строки закупок
             $itemsIcetrade = preg_match_all('/<tr class=".+">(.*)<\/tr>/Uis', $result[1], $resItemsIcetrade);
@@ -91,7 +100,7 @@ class startParsing extends Command
                     foreach($resDataIcetrade[1] as $param => $data){
                         // Удаляем табы и переносы строк там, где они есть
                         if($param === 0 || $param == 4){
-                            $exportData[$key][] =  $this->clear($data);
+                            $exportData[$key][] = $this->clear($data);
                         }elseif($param != 2){
                             $exportData[$key][] = htmlspecialchars_decode($data);
                         }
@@ -130,7 +139,7 @@ class startParsing extends Command
             // Получаем строки закупок
             $itemsGoszakupki = preg_match_all('/<tr data-key="\d+">(.*)<\/tr>/Uis', $resultGoszakupki, $resItemsGoszakupki);
             if (count($resItemsGoszakupki[1]) > 0){
-                foreach($resItemsGoszakupki[1] as $key => $val){
+                foreach($resItemsGoszakupki[1] as $val){
                     // Проверка на наличие закупки в ГИАС
                     $check = strripos($val, '<small class="text-muted">в ГИАС:</small>');
                     if ($check === false){
@@ -141,29 +150,29 @@ class startParsing extends Command
                         $info = explode("<br><br>", $resDataGoszakupki[1]);
                         $opis = str_replace("/marketing", "https://goszakupki.by/marketing", $info[1]);
                         // Краткое описание предмета покупки
-                        $exportData[$index][0] =  $opis;
+                        $exportData[$index][0] = $opis;
                         // Организатор
-                        $exportData[$index][1] =  $info[0];
+                        $exportData[$index][1] = $info[0];
 
                         // Номер
                         preg_match('/<td>auc(.*)</Uis', $val, $resDataGoszakupki);
-                        $exportData[$index][2] =  $resDataGoszakupki[1];
+                        $exportData[$index][2] = $resDataGoszakupki[1];
 
                         // Стоимость
                         preg_match('/\d{4}<\/td><td>(.*) BYN<\/td>/Uis', $val, $resDataGoszakupki);
-                        $exportData[$index][3] =  $resDataGoszakupki[1];
+                        $exportData[$index][3] = $resDataGoszakupki[1];
 
                         // Предложения до
                         preg_match('/<td>(\d{2}\.\d{2}\.\d{4})<\/td>/Uis', $val, $resDataGoszakupki);
-                        $exportData[$index][4] =  $resDataGoszakupki[1];
+                        $exportData[$index][4] = $resDataGoszakupki[1];
                         
                         // Состояние закупки
                         preg_match('/<span class="badge">(.*)<\/span>/Uis', $val, $resDataGoszakupki);
-                        $exportData[$index][8] =  $resDataGoszakupki[1];
+                        $exportData[$index][8] = $resDataGoszakupki[1];
                         
                         // Процедура закупки
                         preg_match('/<\/a><\/td><td>(.*)<\/td>/Uis', $val, $resDataGoszakupki);
-                        $exportData[$index][9] =  $resDataGoszakupki[1];
+                        $exportData[$index][9] = $resDataGoszakupki[1];
 
                         // Устанавливаем паузу между итерациями
                         sleep($pause);
@@ -189,6 +198,52 @@ class startParsing extends Command
                 }
             }
         }
+
+        // Парсинг по API для gias.by
+        $response = Http::withOptions([
+            'verify' => false,
+        ])->post($urlGias, [
+            'page'          => 0,
+            'pageSize'      => 200,
+            'sumLotOkpbs'   => "10.5",
+            'industry'      => [345, 347, 351, 352],
+            'purchaseState' => [3],
+        ])->json();
+        
+        foreach($response['content'] as $val){
+            $index = count($exportData);
+            $itemId = $val['purchaseGiasId'];
+            $itemName = $val['title'];
+            
+            // Краткое описание предмета покупки
+            $itemUrl = "<a href=\"https://gias.by/gias/#/purchase/current/$itemId\">$itemName</a>";
+            $exportData[$index][0] = $itemUrl;
+            // Организатор
+            $exportData[$index][1] = $val['organizator']['name'];
+            // Номер
+            $exportData[$index][2] = $val['publicPurchaseNumber'];
+            // Стоимость
+            $exportData[$index][3] = $val['sumLot']['sumLot'];
+            // Предложения до
+            $beforeDate = is_null($val['requestDate']) ? '' : date('d.m.Y', $val['requestDate']/1000);
+            $exportData[$index][4] = $beforeDate;
+            // УНП
+            $exportData[$index][5] = $val['organizator']['unp'];
+            // Дата подачи
+            $exportData[$index][6] = date('d.m.Y', $val['dtCreate']/1000);
+            // Адрес
+            $exportData[$index][7] = $val['organizator']['location'];
+            // Состояние закупки
+            $exportData[$index][8] = $val['stateName'];
+
+            sleep($pause);
+            $itemUrlApi = 'https://gias.by/purchase/api/v1/purchase/'.$itemId;
+            $itemContent = $this->parseApi($itemUrlApi);
+            // Процедура закупки
+            $exportData[$index][9] = $itemContent['tenderFormName'];
+        }
+
+        // dd($exportData);
 
         // Добавляем заголовки
         array_unshift($exportData, ['Краткое описание предмета покупки', 'Организатор', 'Номер', 'Стоимость', 'Предложения до', 'УНП', 'Дата подачи', 'Адрес', 'Состояние закупки', 'Процедура закупки']);
