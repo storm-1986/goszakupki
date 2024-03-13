@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Exports\ParseExport;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class startParsing extends Command
@@ -65,16 +66,23 @@ class startParsing extends Command
         try{
             $icetradeContents = $this->parse($urlIcetrade);
         }catch (\Exception $e) {
-            $this->error('icetrade.by - ошибка подключения');
+            $message = 'icetrade.by - ошибка подключения';
+            $this->error($message);
+            Log::error($message);
         }
         if (isset($icetradeContents)) {
-            $this->info('icetrade.by - соединение установлено');
+            $message = 'icetrade.by - соединение установлено';
+            $this->info($message);
+            Log::info($message);
 
             // Получаем таблицу с данными
             $zakupkiIcetrade = preg_match('/<table class="auctions w100"  id="auctions-list" cellpadding="0" cellspacing="0">(.*)<\/table>/Uis',  $icetradeContents, $result);
     
             if ($zakupkiIcetrade){
-                $this->info('icetrade.by - получили таблицу с закупками');
+                $message = 'icetrade.by - получили таблицу с закупками';
+                $this->info($message);
+                Log::info($message);
+
                 // Получаем строки закупок
                 $itemsIcetrade = preg_match_all('/<tr class=".+">(.*)<\/tr>/Uis', $result[1], $resItemsIcetrade);
                 if ($itemsIcetrade){
@@ -91,7 +99,9 @@ class startParsing extends Command
                                 }
                             }
                         }else{
-                            $this->error('icetrade.by - ошибка получения столбцов закупки');
+                            $message = 'icetrade.by - ошибка получения столбцов закупки';
+                            $this->error($message);
+                            Log::error($message);
                         }
                         // Устанавливаем паузу между итерациями
                         sleep($pause);
@@ -101,7 +111,10 @@ class startParsing extends Command
                             try{
                                 $icetradeCurContents = $this->parse($curZayavka[1]);
                             }catch (\Exception $e) {
-                                $this->error('icetrade.by - ошибка подключения к заявке ' . $exportData[$key][2]);
+                                $message = 'icetrade.by - ошибка подключения к заявке ' . $exportData[$key][2];
+                                $this->error($message);
+                                Log::error($message);
+
                             }
                         }
                         if (isset($icetradeCurContents)){
@@ -126,12 +139,18 @@ class startParsing extends Command
                             $exportData[$key][] = $getProc ? $this->clear($proc[1]) : '';
                         }
                     }
-                    $this->info('icetrade.by - данные получены');
+                    $message = 'icetrade.by - данные получены';
+                    $this->info($message);
+                    Log::info($message);
                 }else{
-                    $this->error('icetrade.by - ошибка получения строк закупок');
+                    $message = 'icetrade.by - ошибка получения строк закупок';
+                    $this->error($message);
+                    Log::error($message);
                 }
             }else{
-                $this->error('icetrade.by - ошибка получения таблицы с закупками');
+                $message = 'icetrade.by - ошибка получения таблицы с закупками';
+                $this->error($message);
+                Log::error($message);
             }
         }
 
@@ -139,23 +158,29 @@ class startParsing extends Command
         try{
             $goszakupkiContents = $this->parse($urlGoszakupki);
         }catch (\Exception $e) {
-            $this->error('goszakupki.by - ошибка подключения');
+            $message = 'goszakupki.by - ошибка подключения';
+            $this->error($message);
+            Log::error($message);
         }
 
         if (isset($goszakupkiContents)){
-            $this->info('goszakupki.by - соединение установлено');
+            $message = 'goszakupki.by - соединение установлено';
+            $this->info($message);
+            Log::info($message);
             //  Получаем таблицу с данными
             $zakupkiGoszakupki = preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents, $resultGoszakupki);
 
             if ($zakupkiGoszakupki){
-                $this->info('goszakupki.by - получили таблицу с закупками');
+                $message = 'goszakupki.by - получили таблицу с закупками';
+                $this->info($message);
+                Log::info($message);
                 $resultGoszakupki = $resultGoszakupki[1];
         
                 // Парсим последнюю страницу пагинации чтобы узнать кол-во страниц
                 $pagesGoszakupki = preg_match('/<li class="last">(.*)<\/li>/Uis',  $goszakupkiContents, $pages);
                 if ($pagesGoszakupki){
                     $pages = strip_tags($pages[1]);
-                    for ($i = 2; $i <= $pages; $i++) { 
+                    for ($i = 2; $i <= $pages; $i++) {
                         // Устанавливаем паузу между итерациями
                         sleep($pause);
                         // Парсим предложения на каждой странице
@@ -165,19 +190,22 @@ class startParsing extends Command
                         if ($contentOnPage){
                             $resultGoszakupki .= $resultGoszakupkiNext[1];
                         }else{
-                            $this->error('goszakupki.by - ошибка получения таблицы закупок на странице '.$i);
+                            $message = 'goszakupki.by - ошибка получения таблицы закупок на странице ' . $i;
+                            $this->error($message);
+                            Log::error($message);
                         }
                     }
                 }else{
-                    $this->error('goszakupki.by - ошибка получения количества страниц');
+                    $message = 'goszakupki.by - ошибка получения количества страниц';
+                    $this->error($message);
+                    Log::error($message);
                 }
-        
                 // Получаем строки закупок
                 $itemsGoszakupki = preg_match_all('/<tr data-key="\d+">(.*)<\/tr>/Uis', $resultGoszakupki, $resItemsGoszakupki);
                 if ($itemsGoszakupki){
                     foreach($resItemsGoszakupki[1] as $val){
                         // Проверка на наличие закупки в ГИАС, записываем только те записи, которых нет в ГИАС
-                        $check = strripos($val, '<small class="text-muted">в ГИАС:</small>');
+                        $check = strripos($val, '<small class="text-muted">');
                         if ($check === false){
                             // Количество элементов в итоговом массиве
                             $index = count($exportData);
@@ -220,7 +248,9 @@ class startParsing extends Command
                                     try{
                                         $goszakupkiCurContents = $this->parse($curZayavka[1]);
                                     }catch (\Exception $e) {
-                                        $this->error('goszakupki.by - ошибка подключения к заявке ' . $exportData[$index][2]);
+                                        $message = 'goszakupki.by - ошибка подключения к заявке ' . $exportData[$index][2];
+                                        $this->error($message);
+                                        Log::error($message);
                                     }
                                 }
                                 if (isset($goszakupkiCurContents)){
@@ -241,16 +271,24 @@ class startParsing extends Command
                                 }
 
                             }else{
-                                $this->error('goszakupki.by - ошибка получения столбцов закупки');
+                                $message = 'goszakupki.by - ошибка получения столбцов закупки';
+                                $this->error($message);
+                                Log::error($message);
                             }
                         }
                     }
-                    $this->info('goszakupki.by - данные получены');
+                    $message = 'goszakupki.by - данные получены';
+                    $this->info($message);
+                    Log::info($message);
                 }else{
-                    $this->error('goszakupki.by - ошибка получения строк закупок');
+                    $message = 'goszakupki.by - ошибка получения строк закупок';
+                    $this->error($message);
+                    Log::error($message);
                 }
             }else{
-                $this->error('goszakupki.by - ошибка получения таблицы с закупками');
+                $message = 'goszakupki.by - ошибка получения таблицы с закупками';
+                $this->error($message);
+                Log::error($message);
             }
         }
 
@@ -266,11 +304,15 @@ class startParsing extends Command
                 'purchaseState' => [3],
             ])->json();
         }catch (\Exception $e) {
-            $this->error('gias.by - ошибка подключения');
+            $message = 'gias.by - ошибка подключения';
+            $this->error($message);
+            Log::error($message);
         }
 
         if (isset($response)){
-            $this->info('gias.by - соединение установлено');
+            $message = 'gias.by - соединение установлено';
+            $this->info($message);
+            Log::info($message);
             foreach($response['content'] as $val){
                 $index = count($exportData);
                 $itemId = $val['purchaseGiasId'];
@@ -302,14 +344,18 @@ class startParsing extends Command
                 try{
                     $itemContent = $this->parseApi($itemUrlApi);
                 }catch (\Exception $e) {
-                    $this->error('gias.by - ошибка подключения к заявке ' . $exportData[$index][2]);
+                    $message = 'gias.by - ошибка подключения к заявке ' . $exportData[$index][2];
+                    $this->error($message);
+                    Log::error($message);
                 }
                 if (isset($itemContent)){
                     // Процедура закупки
                     $exportData[$index][9] = $itemContent['tenderFormName'];
                 }
             }
-            $this->info('gias.by - данные получены');
+            $message = 'gias.by - данные получены';
+            $this->info($message);
+            Log::info($message);
         }
 
         // Добавляем заголовки
