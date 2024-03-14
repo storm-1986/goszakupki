@@ -91,11 +91,23 @@ class startParsing extends Command
                         $cols = preg_match_all('/<td class=".+">(.*)<\/td>/Uis', $val, $resDataIcetrade);
                         if ($cols){
                             foreach($resDataIcetrade[1] as $param => $data){
-                                // Удаляем табы и переносы строк там, где они есть
-                                if($param === 0 || $param == 4){
-                                    $exportData[$key][] = $this->clear($data);
-                                }elseif($param != 2){
-                                    $exportData[$key][] = htmlspecialchars_decode($data);
+                                switch ($param) {
+                                    case 0:
+                                        // Удаляем табы и переносы строк там, где они есть
+                                        $exportData[$key][0] = $this->clear($data);
+                                        break;
+                                    case 1:
+                                        $exportData[$key][1] = htmlspecialchars_decode($data);
+                                        break;
+                                    case 3:
+                                        $exportData[$key][3] = htmlspecialchars_decode($data);
+                                        break;
+                                    case 4:
+                                        $exportData[$key][4] = $this->clear($data);
+                                        break;
+                                    case 5:
+                                        $exportData[$key][5] = htmlspecialchars_decode($data);
+                                        break;
                                 }
                             }
                         }else{
@@ -111,7 +123,7 @@ class startParsing extends Command
                             try{
                                 $icetradeCurContents = $this->parse($curZayavka[1]);
                             }catch (\Exception $e) {
-                                $message = 'icetrade.by - ошибка подключения к заявке ' . $exportData[$key][2];
+                                $message = 'icetrade.by - ошибка подключения к заявке ' . $exportData[$key][3];
                                 $this->error($message);
                                 Log::error($message);
 
@@ -120,24 +132,25 @@ class startParsing extends Command
                         if (isset($icetradeCurContents)){
                             // Парсим УНП
                             $getUNP = preg_match('/<tr class="af af-customer_data">.*<td class="afv">.*(\d{9}).*<\/td>/Uis', $icetradeCurContents, $UNP);
-                            $exportData[$key][] = $getUNP ? $UNP[1] : '';
+                            $exportData[$key][2] = $getUNP ? $UNP[1] : '';
         
                             // Парсим дату размещения
                             $getDateR = preg_match('/<tr class="af af-created">.*<td class="afv">.*(\d{2}\.\d{2}\.\d{4}).*<\/td>/Uis', $icetradeCurContents, $dateR);
-                            $exportData[$key][] = $getDateR ? $dateR[1] : '';
+                            $exportData[$key][6] = $getDateR ? $dateR[1] : '';
         
                             // Парсим адрес предприятия
                             $getAddr = preg_match('/<tr class="af af-customer_data">.*<td class="afv">(.*)\d{9}/Uis', $icetradeCurContents, $addr);
-                            $exportData[$key][] = $getAddr ? htmlspecialchars_decode($this->clear($addr[1])) : '';
+                            $exportData[$key][7] = $getAddr ? htmlspecialchars_decode($this->clear($addr[1])) : '';
         
                             // Парсим состояние закупки
                             $getStatus = preg_match('/<tr id="lotRow1" class="af expanded">.*<td class="ac p81">.*\d.*<\/td>.*<td class="ac p81">(.+)<\/td>/Uis', $icetradeCurContents, $status);
-                            $exportData[$key][] = $getStatus ? $this->clear($status[1]): '';
+                            $exportData[$key][8] = $getStatus ? $this->clear($status[1]): '';
         
                             // Парсим процедуру закупки
                             $getProc = preg_match('/<tr class="fst">.*<b>(.+)<\/b>/Uis', $icetradeCurContents, $proc);
-                            $exportData[$key][] = $getProc ? $this->clear($proc[1]) : '';
+                            $exportData[$key][9] = $getProc ? $this->clear($proc[1]) : '';
                         }
+                        ksort($exportData[$key]);
                     }
                     $message = 'icetrade.by - данные получены';
                     $this->info($message);
@@ -221,15 +234,15 @@ class startParsing extends Command
         
                                 // Номер
                                 $num = preg_match('/<td>auc(.*)</Uis', $val, $resDataGoszakupki);
-                                $exportData[$index][2] = $num ? $resDataGoszakupki[1] : '';
+                                $exportData[$index][3] = $num ? $resDataGoszakupki[1] : '';
         
                                 // Стоимость
                                 $stoimost = preg_match('/\d{4}<\/td><td>(.*) BYN<\/td>/Uis', $val, $resDataGoszakupki);
-                                $exportData[$index][3] = $stoimost ? $resDataGoszakupki[1] : '';
+                                $exportData[$index][4] = $stoimost ? $resDataGoszakupki[1] : '';
         
                                 // Предложения до
                                 $pedlDo = preg_match('/<td>(\d{2}\.\d{2}\.\d{4})<\/td>/Uis', $val, $resDataGoszakupki);
-                                $exportData[$index][4] = $pedlDo ? $resDataGoszakupki[1] : '';
+                                $exportData[$index][5] = $pedlDo ? $resDataGoszakupki[1] : '';
                                 
                                 // Состояние закупки
                                 $getStatus = preg_match('/<span class="badge">(.*)<\/span>/Uis', $val, $resDataGoszakupki);
@@ -248,7 +261,7 @@ class startParsing extends Command
                                     try{
                                         $goszakupkiCurContents = $this->parse($curZayavka[1]);
                                     }catch (\Exception $e) {
-                                        $message = 'goszakupki.by - ошибка подключения к заявке ' . $exportData[$index][2];
+                                        $message = 'goszakupki.by - ошибка подключения к заявке ' . $exportData[$index][3];
                                         $this->error($message);
                                         Log::error($message);
                                     }
@@ -256,7 +269,7 @@ class startParsing extends Command
                                 if (isset($goszakupkiCurContents)){
                                     // Парсим УНП
                                     $getUNP = preg_match('/<td>(\d{9})<\/td>/Uis', $goszakupkiCurContents, $UNP);
-                                    $exportData[$index][5] = $getUNP ? $UNP[1] : '';
+                                    $exportData[$index][2] = $getUNP ? $UNP[1] : '';
                                     
                                     // Парсим дату размещения
                                     $getDateR = preg_match('/<th class="col-md-4">Дата размещения приглашения<\/th>.*<td>(\d{2}\.\d{2}\.\d{4})<\/td>/Uis', $goszakupkiCurContents, $dateR);
@@ -323,15 +336,15 @@ class startParsing extends Command
                 $exportData[$index][0] = $itemUrl;
                 // Организатор
                 $exportData[$index][1] = $val['organizator']['name'];
+                // УНП
+                $exportData[$index][2] = $val['organizator']['unp'];
                 // Номер
-                $exportData[$index][2] = $val['publicPurchaseNumber'];
+                $exportData[$index][3] = $val['publicPurchaseNumber'];
                 // Стоимость
-                $exportData[$index][3] = $val['sumLot']['sumLot'];
+                $exportData[$index][4] = $val['sumLot']['sumLot'];
                 // Предложения до
                 $beforeDate = is_null($val['requestDate']) ? '' : date('d.m.Y', $val['requestDate']/1000);
-                $exportData[$index][4] = $beforeDate;
-                // УНП
-                $exportData[$index][5] = $val['organizator']['unp'];
+                $exportData[$index][5] = $beforeDate;
                 // Дата подачи
                 $exportData[$index][6] = date('d.m.Y', $val['dtCreate']/1000);
                 // Адрес
@@ -344,7 +357,7 @@ class startParsing extends Command
                 try{
                     $itemContent = $this->parseApi($itemUrlApi);
                 }catch (\Exception $e) {
-                    $message = 'gias.by - ошибка подключения к заявке ' . $exportData[$index][2];
+                    $message = 'gias.by - ошибка подключения к заявке ' . $exportData[$index][3];
                     $this->error($message);
                     Log::error($message);
                 }
@@ -359,7 +372,7 @@ class startParsing extends Command
         }
 
         // Добавляем заголовки
-        array_unshift($exportData, ['Краткое описание предмета покупки', 'Организатор', 'Номер', 'Стоимость', 'Предложения до', 'УНП', 'Дата подачи', 'Адрес', 'Состояние закупки', 'Процедура закупки']);
+        array_unshift($exportData, ['Предмет закупки', 'Организатор', 'УНП', 'Номер', 'Стоимость', 'Предложения до', 'Дата подачи', 'Адрес', 'Состояние закупки', 'Процедура закупки']);
 
         $currentDate = date('d.m.Y');
 
