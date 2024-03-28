@@ -378,7 +378,6 @@ class startParsing extends Command
 
         // Экспорт в Excel
         $export = new ParseExport($exportData);
-        // $file = storage_path('app/public/test_data.xlsx');
         Excel::store($export, 'public/Goszakupka-'.$currentDate.'.xlsx');
     }
 }
