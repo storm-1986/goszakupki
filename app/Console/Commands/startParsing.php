@@ -44,7 +44,7 @@ class startParsing extends Command
     }
 
     public function clear($str){
-        $clearStr = str_replace(["\r", "\n", "\t", "<span class=\"nw\">", "</span> BYN", "<br />"], '', $str);
+        $clearStr = str_replace(["\r", "\n", "\t", "<span class=\"nw\">", "</span>", "BYN", "<br />"], '', $str);
         return trim($clearStr);
     }
 
