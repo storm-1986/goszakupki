@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Exports\ParseExport;
 use Illuminate\Console\Command;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -25,14 +26,44 @@ class startParsing extends Command
      */
     protected $description = 'Запуск парсинга для сайта ';
 
-    public function parse($url){
-        $contents = Http::withHeaders([
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36',
-        ])->withOptions([
-            'verify' => false,
-        ])->get($url)->getBody()->getContents();
-
-        return $contents;
+    public function parse($url, $type = 0, $cookiesData = []){
+        if ($type == 1){
+            if (count($cookiesData) == 0){
+                $cookiesGoszakypki = [];
+                $response = Http::withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                ])->withOptions([
+                    'verify' => false,
+                ])->get('https://goszakupki.by/site/login');
+    
+                if ($response->cookies()) {
+                    foreach ($response->cookies() as $cookie) {
+                        $cookiesGoszakypki = Arr::add($cookiesGoszakypki, $cookie->getName(), $cookie->getValue());
+                    }
+                }
+                sleep(2);
+            }else{
+                $cookiesGoszakypki = $cookiesData;
+            }
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            ])->withOptions([
+                'verify' => false,
+            ])->withCookies([
+                'PHPSESSID' => $cookiesGoszakypki['PHPSESSID'],
+                '_csrf' => $cookiesGoszakypki['_csrf'],
+            ], 'goszakupki.by')
+            ->get($url)->getBody()->getContents();
+            $respData = [$response, $cookiesGoszakypki];
+            return $respData;
+        }else{
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            ])->withOptions([
+                'verify' => false,
+            ])->get($url)->getBody()->getContents();
+            return $response;
+        }
     }
 
     public function parseApi($url){
@@ -169,19 +200,19 @@ class startParsing extends Command
 
         // Парсинг для goszakupki.by
         try{
-            $goszakupkiContents = $this->parse($urlGoszakupki);
+            $goszakupkiContents = $this->parse($urlGoszakupki, 1);
         }catch (\Exception $e) {
             $message = 'goszakupki.by - ошибка подключения';
             $this->error($message);
             Log::error($message);
         }
 
-        if (isset($goszakupkiContents)){
+        if (isset($goszakupkiContents[0])){
             $message = 'goszakupki.by - соединение установлено';
             $this->info($message);
             Log::info($message);
             //  Получаем таблицу с данными
-            $zakupkiGoszakupki = preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents, $resultGoszakupki);
+            $zakupkiGoszakupki = preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents[0], $resultGoszakupki);
 
             if ($zakupkiGoszakupki){
                 $message = 'goszakupki.by - получили таблицу с закупками';
@@ -190,7 +221,7 @@ class startParsing extends Command
                 $resultGoszakupki = $resultGoszakupki[1];
         
                 // Парсим последнюю страницу пагинации чтобы узнать кол-во страниц
-                $pagesGoszakupki = preg_match('/<li class="last">(.*)<\/li>/Uis',  $goszakupkiContents, $pages);
+                $pagesGoszakupki = preg_match('/<li class="last">(.*)<\/li>/Uis',  $goszakupkiContents[0], $pages);
                 if ($pagesGoszakupki){
                     $pages = strip_tags($pages[1]);
                     for ($i = 2; $i <= $pages; $i++) {
@@ -198,8 +229,8 @@ class startParsing extends Command
                         sleep($pause);
                         // Парсим предложения на каждой странице
                         $urlGoszakupkiNext = $urlGoszakupki.'&page='.$i;
-                        $goszakupkiContents = $this->parse($urlGoszakupkiNext);
-                        $contentOnPage = preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents, $resultGoszakupkiNext);
+                        $goszakupkiContents = $this->parse($urlGoszakupkiNext, 1, $goszakupkiContents[1]);
+                        $contentOnPage = preg_match('/<tbody>(.*)<\/tbody>/Uis',  $goszakupkiContents[0], $resultGoszakupkiNext);
                         if ($contentOnPage){
                             $resultGoszakupki .= $resultGoszakupkiNext[1];
                         }else{
@@ -356,6 +387,7 @@ class startParsing extends Command
                 $itemUrlApi = 'https://gias.by/purchase/api/v1/purchase/'.$itemId;
                 try{
                     $itemContent = $this->parseApi($itemUrlApi);
+                    $this->info($itemContent);
                 }catch (\Exception $e) {
                     $message = 'gias.by - ошибка подключения к заявке ' . $exportData[$index][3];
                     $this->error($message);
