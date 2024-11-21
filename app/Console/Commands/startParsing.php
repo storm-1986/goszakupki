@@ -387,7 +387,6 @@ class startParsing extends Command
                 $itemUrlApi = 'https://gias.by/purchase/api/v1/purchase/'.$itemId;
                 try{
                     $itemContent = $this->parseApi($itemUrlApi);
-                    $this->info($itemContent);
                 }catch (\Exception $e) {
                     $message = 'gias.by - ошибка подключения к заявке ' . $exportData[$index][3];
                     $this->error($message);
