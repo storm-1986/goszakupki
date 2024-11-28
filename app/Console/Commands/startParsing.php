@@ -392,10 +392,8 @@ class startParsing extends Command
                     $this->error($message);
                     Log::error($message);
                 }
-                if (isset($itemContent)){
-                    // Процедура закупки
-                    $exportData[$index][9] = $itemContent['tenderFormName'];
-                }
+                // Процедура закупки
+                $exportData[$index][9] = isset($itemContent['tenderFormName']) ? $itemContent['tenderFormName'] : '';
             }
             $message = 'gias.by - данные получены';
             $this->info($message);
