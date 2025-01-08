@@ -161,18 +161,25 @@ class startParsing extends Command
                             }
                         }
                         if (isset($icetradeCurContents)){
+                            // Парсим кто проводит закупку
+                            $getOrg = preg_match('/<tr class="af af-hold_by">.*<td class="afv">(.*)<\/td>/Uis', $icetradeCurContents, $org);
+                            $org = $getOrg ? $this->clear($org[1]) : '';
+                            $templ = ($org == 'организатором') ? 'organizer' : 'customer';
+
                             // Парсим УНП
-                            $getUNP = preg_match('/<tr class="af af-customer_data">.*<td class="afv">.*(\d{9}).*<\/td>/Uis', $icetradeCurContents, $UNP);
+                            $getUNP = preg_match('/<tr class="af af-' . $templ . '_data">.*<td class="afv">.*(\d{9}).*<\/td>/Uis', $icetradeCurContents, $UNP);
                             $exportData[$key][2] = $getUNP ? $UNP[1] : '';
-        
+
                             // Парсим дату размещения
                             $getDateR = preg_match('/<tr class="af af-created">.*<td class="afv">.*(\d{2}\.\d{2}\.\d{4}).*<\/td>/Uis', $icetradeCurContents, $dateR);
                             $exportData[$key][6] = $getDateR ? $dateR[1] : '';
-        
+
                             // Парсим адрес предприятия
-                            $getAddr = preg_match('/<tr class="af af-customer_data">.*<td class="afv">(.*)\d{9}/Uis', $icetradeCurContents, $addr);
-                            $exportData[$key][7] = $getAddr ? htmlspecialchars_decode($this->clear($addr[1])) : '';
-        
+                            $getAddr = preg_match('/<tr class="af af-' . $templ . '_data">.*<td class="afv">(.*)<\/td>/Uis', $icetradeCurContents, $addr);
+                            $address = $getAddr ? htmlspecialchars_decode($this->clear($addr[1])) : '';
+                            $address = preg_replace('/\s*\d{9}/', '', $address);
+                            $exportData[$key][7] = $address;
+
                             // Парсим состояние закупки
                             $getStatus = preg_match('/<tr id="lotRow1" class="af expanded">.*<td class="ac p81">.*\d.*<\/td>.*<td class="ac p81">(.+)<\/td>/Uis', $icetradeCurContents, $status);
                             $exportData[$key][8] = $getStatus ? $this->clear($status[1]): '';
